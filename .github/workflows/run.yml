@@ -1,36 +1,35 @@
 name: Cloud check in action
 on:
   push:
-    branches:
-      - main
+    branches: - main
   watch:
     types: started
   workflow_dispatch:
   schedule:
     - cron: 45 1 * * *
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: user
     steps:
-      - name: 🔀 random delay 0-300 seconds
+      - name: random delay 0-300 seconds
         run: sleep $((RANDOM % 301))
 
-      - name: 🔌 Check out code
+      - name: Check out code
         uses: actions/checkout@main
 
-      - name: 🔨 Setup Node.js environment
+      - name: Setup Node.js environment
         uses: actions/setup-node@main
         with:
           node-version: 18
           cache: npm
 
-      - name: 👾 Check if Debug is true
+      - name: Check if Debug is true
         if: vars.debug == '1'
-        run: |
-          echo "CLOUD189_VERBOSE=1" >> $GITHUB_ENV
-      
-      - name: 📹 Restore cached Cookie
+        run: echo "CLOUD189_VERBOSE=1" >> $GITHUB_ENV
+
+      - name: Restore cached Cookie
         id: cache-cookie-restore
         uses: actions/cache/restore@v5
         with:
@@ -38,38 +37,44 @@ jobs:
           key: cloud189-token-${{ hashFiles('.token/*.json') }}
           restore-keys: cloud189-token-
 
-      - name: 🔧 Init secrets
-        uses: shine1594/secrets-to-env-action@master
-        with:
-          secrets: ${{ toJSON(secrets) }}
-          secrets_env: production
-          prefix_prod: ""
-          file_name_prod: .env
+      # ✅ 开始修复：用原生Shell脚本生成.env文件，替代 shine1594/secrets-to-env-action
+      - name: Init secrets
+        run: |
+          cat > .env << 'EOF'
+          TY_ACCOUNTS=${{ secrets.TY_ACCOUNTS }}
+          SENDKEY=${{ secrets.SENDKEY }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+          WECOM_BOT_KEY=${{ secrets.WECOM_BOT_KEY }}
+          WX_PUSHER_APP_TOKEN=${{ secrets.WX_PUSHER_APP_TOKEN }}
+          WX_PUSHER_UID=${{ secrets.WX_PUSHER_UID }}
+          EOF
+      # ✅ 修复结束
 
-      - name: 📡 Init dependencies
+      - name: Init dependencies
         run: npm install
 
-      - name: 🚀 Run
+      - name: Run
         uses: nick-fields/retry@master
         with:
           timeout_minutes: 30
           max_attempts: 3
           command: npm start
 
-      - name: 🔑 Compute token hash
+      - name: Compute token hash
         if: always()
         run: |
           NEW_HASH=$(find .token -name '*.json' -exec sha256sum {} \; 2>/dev/null | sha256sum | cut -d' ' -f1)
           echo "TOKEN_HASH=${NEW_HASH}" >> $GITHUB_ENV
 
-      - name: 📹 Save cached Cookie
+      - name: Save cached Cookie
         if: always() && env.TOKEN_HASH != ''
         uses: actions/cache/save@v5
         with:
           path: .token
           key: cloud189-token-${{ env.TOKEN_HASH }}
 
-      - name: 🚗 Keep Running
+      - name: Keep Running
         if: github.event_name == 'schedule'
         run: |
           git config --local user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
@@ -79,7 +84,7 @@ jobs:
           git commit --allow-empty -m "Keep Running..."
           git push
 
-      - name: 🎉 Delete old workflow run
+      - name: Delete old workflow run
         uses: Mattraks/delete-workflow-runs@main
         with:
           token: ${{ github.token }}
