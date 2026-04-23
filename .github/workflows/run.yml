@@ -32,7 +32,7 @@ jobs:
       
       - name: 📹 Restore cached Cookie
         id: cache-cookie-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .token
           key: cloud189-token-${{ hashFiles('.token/*.json') }}
@@ -64,7 +64,7 @@ jobs:
 
       - name: 📹 Save cached Cookie
         if: always() && env.TOKEN_HASH != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .token
           key: cloud189-token-${{ env.TOKEN_HASH }}
